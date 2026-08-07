@@ -3,7 +3,8 @@ name: Patch TESTRA problem section
 on:
   push:
     paths:
-      - '.github/workflows/patch-problem-section.yml'
+      - .github/workflows/patch-problem-section.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,19 +13,19 @@ jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: main
 
       - name: Replace problem section
-        shell: python
         run: |
+          python3 <<'PY'
           from pathlib import Path
           import re
 
-          path = Path('index.html')
-          text = path.read_text(encoding='utf-8')
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8")
 
           replacement = '''<section class="problem" id="masalah">
   <div class="wrap">
@@ -56,16 +57,15 @@ jobs:
           pattern = r'<section class="problem" id="masalah">.*?</section>'
           updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
           if count != 1:
-              raise SystemExit(f'Expected exactly 1 problem section, found {count}')
-          path.write_text(updated, encoding='utf-8')
+              raise SystemExit(f"Expected exactly 1 problem section, found {count}")
+          path.write_text(updated, encoding="utf-8")
+          PY
 
-      - name: Remove temporary workflow
-        run: rm .github/workflows/patch-problem-section.yml
-
-      - name: Commit and push
+      - name: Commit update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html .github/workflows/patch-problem-section.yml
+          git add index.html
+          git diff --cached --quiet && exit 0
           git commit -m "Update TESTRA confidence signs section"
           git push origin main
