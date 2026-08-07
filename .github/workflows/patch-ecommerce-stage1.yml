@@ -1,0 +1,35 @@
+name: Patch TESTRA ecommerce stage 1
+
+on:
+  push:
+    paths:
+      - scripts/patch_ecommerce_stage1.py
+      - .github/workflows/patch-ecommerce-stage1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Patch landing page
+        run: python3 scripts/patch_ecommerce_stage1.py
+
+      - name: Commit update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No content changes to commit"
+            exit 0
+          fi
+          git commit -m "Wire TESTRA packages to checkout"
+          git push origin main
