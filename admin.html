@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — TESTRA</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --pace-blue:#1746FF;--navy:#0A1128;--solar-gold:#FFB100;--solar-coral:#FF5A1F;
+    --paper:#F7F7FB;--ink:#12142B;--muted:#6B7091;--line:#E4E5F1;
+    --ok:#1AA35A;--warn:#D89A00;--err:#E0392B;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Manrope',sans-serif;background:var(--paper);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  h1,h2,.display{font-family:'Fraunces',serif;font-weight:600;}
+  a{text-decoration:none;color:inherit;}
+  input,select,textarea,button{font-family:'Manrope',sans-serif;}
+
+  /* LOGIN */
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .login-box{background:#fff;border-radius:24px;padding:36px 28px;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(10,17,40,0.08);}
+  .login-box .logo{font-family:'Fraunces',serif;font-weight:700;font-size:22px;text-align:center;margin-bottom:6px;}
+  .login-box .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:26px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;}
+  .field input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;}
+  .field input:focus{outline:none;border-color:var(--pace-blue);}
+  .btn{padding:13px 22px;border-radius:999px;font-weight:800;font-size:14px;border:none;cursor:pointer;}
+  .btn-primary{background:var(--pace-blue);color:#fff;width:100%;box-shadow:0 8px 20px rgba(23,70,255,0.25);}
+  .login-err{color:var(--err);font-size:13px;margin-top:10px;display:none;text-align:center;}
+  .login-err.show{display:block;}
+
+  /* APP SHELL */
+  #app{display:none;}
+  #app.show{display:block;}
+  header.topbar{
+    background:var(--navy);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px;
+    position:sticky;top:0;z-index:10;
+  }
+  header.topbar .logo{font-family:'Fraunces',serif;font-weight:700;font-size:18px;}
+  header.topbar .spacer{flex:1;}
+  header.topbar .who{font-size:12px;color:rgba(255,255,255,0.6);}
+  header.topbar button.logout{background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;}
+
+  .wrap{max-width:920px;margin:0 auto;padding:20px 16px 60px;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;}
+  .stat .num{font-family:'Fraunces',serif;font-size:24px;font-weight:700;}
+  .stat .lbl{font-size:12px;color:var(--muted);font-weight:600;}
+
+  .filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:16px;}
+  .filter-chip{
+    flex-shrink:0;padding:9px 16px;border-radius:999px;border:1.5px solid var(--line);
+    background:#fff;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;
+  }
+  .filter-chip.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+  .search-box{margin-bottom:16px;}
+  .search-box input{width:100%;padding:12px 16px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;background:#fff;}
+
+  .order-card{
+    background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:10px;cursor:pointer;
+  }
+  .order-card .row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .order-card .order-no{font-weight:800;font-size:14px;}
+  .order-card .badge{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:0.02em;}
+  .badge.pending_payment{background:#FFF3D6;color:var(--warn);}
+  .badge.paid{background:#E3F5EA;color:var(--ok);}
+  .badge.processing{background:#E5EAFF;color:var(--pace-blue);}
+  .badge.shipped, .badge.out_for_delivery{background:#E5EAFF;color:var(--pace-blue);}
+  .badge.delivered{background:#E3F5EA;color:var(--ok);}
+  .badge.cancelled{background:#FDEDEB;color:var(--err);}
+  .order-card .row2{font-size:13px;color:var(--muted);}
+  .order-card .row3{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;}
+  .order-card .price{font-weight:800;}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+
+  /* DETAIL MODAL */
+  #detailScreen{display:none;position:fixed;inset:0;background:var(--paper);z-index:20;overflow-y:auto;}
+  #detailScreen.show{display:block;}
+  .detail-header{background:var(--navy);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;}
+  .detail-header button{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;}
+  .detail-wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+  .detail-section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;}
+  .detail-section h3{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:var(--pace-blue);margin-bottom:12px;}
+  .kv{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid var(--paper);}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted);}
+  .kv .v{font-weight:700;text-align:right;}
+  .status-select{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;margin-bottom:10px;}
+  .tracking-row{display:flex;gap:8px;}
+  .tracking-row input{flex:1;padding:12px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;}
+  .btn-wa{background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:999px;font-weight:800;margin-top:8px;}
+  .save-msg{font-size:12px;color:var(--ok);margin-top:8px;display:none;}
+  .save-msg.show{display:block;}
+  .timeline-item{display:flex;gap:10px;padding:8px 0;font-size:13px;}
+  .timeline-item .dot{width:8px;height:8px;border-radius:50%;background:var(--pace-blue);margin-top:5px;flex-shrink:0;}
+  .timeline-item .desc{font-weight:600;}
+  .timeline-item .time{color:var(--muted);font-size:11px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo">TESTRA</div>
+    <div class="sub">Admin Panel</div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@testra.my">
+    </div>
+    <div class="field">
+      <label>Kata Laluan</label>
+      <input type="password" id="loginPassword" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" id="loginBtn">Log Masuk</button>
+    <div class="login-err" id="loginErr">Email atau kata laluan salah.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="topbar">
+    <div class="logo">TESTRA Admin</div>
+    <div class="spacer"></div>
+    <div class="who" id="whoEmail"></div>
+    <button class="logout" id="logoutBtn">Log Keluar</button>
+  </header>
+
+  <div class="wrap">
+    <div class="stat-row">
+      <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">Jumlah Pesanan</div></div>
+      <div class="stat"><div class="num" id="statPending">0</div><div class="lbl">Belum Disahkan</div></div>
+    </div>
+
+    <div class="filters" id="filters">
+      <div class="filter-chip active" data-status="all">Semua</div>
+      <div class="filter-chip" data-status="pending_payment">Belum Sah</div>
+      <div class="filter-chip" data-status="paid">Dibayar</div>
+      <div class="filter-chip" data-status="processing">Diproses</div>
+      <div class="filter-chip" data-status="shipped">Dihantar</div>
+      <div class="filter-chip" data-status="delivered">Selesai</div>
+      <div class="filter-chip" data-status="cancelled">Dibatal</div>
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Cari nama, telefon, atau no. pesanan...">
+    </div>
+
+    <div id="orderList"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">Tiada pesanan dijumpai.</div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="detailScreen">
+  <div class="detail-header">
+    <button id="closeDetail">←</button>
+    <div id="detailOrderNo" style="font-weight:800;"></div>
+  </div>
+  <div class="detail-wrap">
+
+    <div class="detail-section">
+      <h3>Status Pesanan</h3>
+      <select class="status-select" id="statusSelect">
+        <option value="pending_payment">Belum Disahkan</option>
+        <option value="paid">Dibayar</option>
+        <option value="processing">Diproses</option>
+        <option value="shipped">Dihantar</option>
+        <option value="out_for_delivery">Dalam Penghantaran</option>
+        <option value="delivered">Selesai</option>
+        <option value="cancelled">Dibatal</option>
+        <option value="refunded">Refund</option>
+      </select>
+      <button class="btn btn-primary" id="saveStatusBtn" style="width:100%;">Kemaskini Status</button>
+      <div class="save-msg" id="statusSaveMsg">✓ Status dikemaskini</div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Tracking / Courier</h3>
+      <div class="tracking-row">
+        <input type="text" id="courierInput" placeholder="Courier (cth: J&T)">
+        <input type="text" id="trackingInput" placeholder="No. Tracking / AWB">
+      </div>
+      <button class="btn btn-primary" id="saveTrackingBtn" style="width:100%;margin-top:8px;">Simpan Tracking</button>
+      <div class="save-msg" id="trackingSaveMsg">✓ Tracking dikemaskini</div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Pelanggan</h3>
+      <div class="kv"><span class="k">Nama</span><span class="v" id="dCustomerName"></span></div>
+      <div class="kv"><span class="k">Telefon</span><span class="v" id="dCustomerPhone"></span></div>
+      <div class="kv"><span class="k">Emel</span><span class="v" id="dCustomerEmail"></span></div>
+      <a id="waLink" href="#" target="_blank" class="btn-wa">💬 WhatsApp Pelanggan</a>
+    </div>
+
+    <div class="detail-section">
+      <h3>Alamat Penghantaran</h3>
+      <div id="dAddress" style="font-size:14px;line-height:1.7;"></div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Item Pesanan</h3>
+      <div id="dItems"></div>
+      <div class="kv" style="margin-top:8px;border-top:1px solid var(--line);padding-top:10px;">
+        <span class="k">Jumlah</span><span class="v" id="dTotal" style="font-size:16px;"></span>
+      </div>
+    </div>
+
+    <div class="detail-section" id="notesSection" style="display:none;">
+      <h3>Nota</h3>
+      <div id="dNotes" style="font-size:14px;"></div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Timeline</h3>
+      <div id="dTimeline"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://aytmfuevvoumobwfqptc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Uol-itavAcZy4ciP3gbqJg_Ea9sw1TS';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allOrders = [];
+let currentFilter = 'all';
+let currentOrder = null;
+
+function formatRM(cents){ return 'RM' + (cents/100).toFixed(2).replace(/\.00$/,''); }
+function formatDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('ms-MY',{day:'numeric',month:'short',year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'});
+}
+const STATUS_LABEL = {
+  pending_payment:'Belum Sah', paid:'Dibayar', processing:'Diproses',
+  shipped:'Dihantar', out_for_delivery:'Dalam Penghantaran', delivered:'Selesai',
+  cancelled:'Dibatal', refunded:'Refund'
+};
+
+// ---------- AUTH ----------
+async function checkSession(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (session){ showApp(session); } else { showLogin(); }
+}
+
+function showLogin(){
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').classList.remove('show');
+}
+
+function showApp(session){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('whoEmail').textContent = session.user.email;
+  loadOrders();
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.classList.remove('show');
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error){
+    errEl.classList.add('show');
+    return;
+  }
+  showApp(data.session);
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  showLogin();
+});
+
+// ---------- LOAD ORDERS ----------
+async function loadOrders(){
+  const { data, error } = await sb
+    .from('orders')
+    .select('*, order_items(*)')
+    .order('created_at', { ascending: false });
+
+  if (error){ console.error(error); return; }
+  allOrders = data || [];
+  renderStats();
+  renderList();
+}
+
+function renderStats(){
+  document.getElementById('statTotal').textContent = allOrders.length;
+  document.getElementById('statPending').textContent =
+    allOrders.filter(o => o.status === 'pending_payment').length;
+}
+
+function renderList(){
+  let filtered = allOrders;
+  if (currentFilter !== 'all'){
+    filtered = filtered.filter(o => o.status === currentFilter);
+  }
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (q){
+    filtered = filtered.filter(o =>
+      (o.order_no || '').toLowerCase().includes(q) ||
+      (o.customer_name || '').toLowerCase().includes(q) ||
+      (o.customer_phone || '').toLowerCase().includes(q)
+    );
+  }
+
+  const listEl = document.getElementById('orderList');
+  const emptyEl = document.getElementById('emptyState');
+  listEl.innerHTML = '';
+
+  if (filtered.length === 0){
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  filtered.forEach(order => {
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    card.innerHTML = `
+      <div class="row1">
+        <span class="order-no">${order.order_no}</span>
+        <span class="badge ${order.status}">${STATUS_LABEL[order.status] || order.status}</span>
+      </div>
+      <div class="row2">${order.customer_name} · ${order.customer_phone}</div>
+      <div class="row3">
+        <span>${formatDate(order.created_at)}</span>
+        <span class="price">${formatRM(order.total_cents)}</span>
+      </div>
+    `;
+    card.addEventListener('click', () => openDetail(order));
+    listEl.appendChild(card);
+  });
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.status;
+    renderList();
+  });
+});
+document.getElementById('searchInput').addEventListener('input', renderList);
+
+// ---------- DETAIL ----------
+async function openDetail(order){
+  currentOrder = order;
+  document.getElementById('detailOrderNo').textContent = order.order_no;
+  document.getElementById('statusSelect').value = order.status;
+  document.getElementById('dCustomerName').textContent = order.customer_name;
+  document.getElementById('dCustomerPhone').textContent = order.customer_phone;
+  document.getElementById('dCustomerEmail').textContent = order.customer_email || '—';
+
+  const waNumber = (order.customer_phone || '').replace(/\D/g,'');
+  document.getElementById('waLink').href =
+    `https://wa.me/${waNumber}?text=${encodeURIComponent('Hi ' + order.customer_name + ', TESTRA di sini mengenai pesanan ' + order.order_no + '...')}`;
+
+  const addr = order.shipping_address || {};
+  document.getElementById('dAddress').innerHTML = [
+    addr.line1, addr.line2, `${addr.postcode || ''} ${addr.city || ''}`, addr.state, addr.country
+  ].filter(Boolean).join('<br>');
+
+  const itemsEl = document.getElementById('dItems');
+  itemsEl.innerHTML = '';
+  (order.order_items || []).forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'kv';
+    row.innerHTML = `<span class="k">${item.product_name} × ${item.quantity}</span><span class="v">${formatRM(item.line_total_cents)}</span>`;
+    itemsEl.appendChild(row);
+  });
+  document.getElementById('dTotal').textContent = formatRM(order.total_cents);
+
+  if (order.notes){
+    document.getElementById('notesSection').style.display = 'block';
+    document.getElementById('dNotes').textContent = order.notes;
+  } else {
+    document.getElementById('notesSection').style.display = 'none';
+  }
+
+  // load existing shipment (if any)
+  const { data: shipments } = await sb.from('shipments').select('*').eq('order_id', order.id).order('created_at',{ascending:false}).limit(1);
+  const shipment = shipments && shipments[0];
+  document.getElementById('courierInput').value = shipment ? shipment.provider : '';
+  document.getElementById('trackingInput').value = shipment ? (shipment.awb_number || '') : '';
+
+  // load timeline
+  const { data: events } = await sb.from('order_events').select('*').eq('order_id', order.id).order('created_at',{ascending:false});
+  const tlEl = document.getElementById('dTimeline');
+  tlEl.innerHTML = '';
+  (events || []).forEach(ev => {
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    item.innerHTML = `<div class="dot"></div><div><div class="desc">${ev.description || ev.event_type}</div><div class="time">${formatDate(ev.created_at)}</div></div>`;
+    tlEl.appendChild(item);
+  });
+
+  document.getElementById('statusSaveMsg').classList.remove('show');
+  document.getElementById('trackingSaveMsg').classList.remove('show');
+  document.getElementById('detailScreen').classList.add('show');
+}
+
+document.getElementById('closeDetail').addEventListener('click', () => {
+  document.getElementById('detailScreen').classList.remove('show');
+});
+
+document.getElementById('saveStatusBtn').addEventListener('click', async () => {
+  const newStatus = document.getElementById('statusSelect').value;
+  const { error } = await sb.from('orders').update({ status: newStatus }).eq('id', currentOrder.id);
+  if (error){ console.error(error); return; }
+
+  await sb.from('order_events').insert({
+    order_id: currentOrder.id,
+    event_type: 'status_changed',
+    description: 'Status ditukar ke ' + (STATUS_LABEL[newStatus] || newStatus),
+    actor: 'admin'
+  });
+
+  document.getElementById('statusSaveMsg').classList.add('show');
+  currentOrder.status = newStatus;
+  await loadOrders();
+});
+
+document.getElementById('saveTrackingBtn').addEventListener('click', async () => {
+  const courier = document.getElementById('courierInput').value.trim();
+  const tracking = document.getElementById('trackingInput').value.trim();
+
+  const { data: existing } = await sb.from('shipments').select('id').eq('order_id', currentOrder.id).limit(1);
+
+  if (existing && existing.length > 0){
+    await sb.from('shipments').update({ provider: courier || 'manual', awb_number: tracking }).eq('id', existing[0].id);
+  } else {
+    await sb.from('shipments').insert({ order_id: currentOrder.id, provider: courier || 'manual', awb_number: tracking, status: 'pending' });
+  }
+
+  await sb.from('order_events').insert({
+    order_id: currentOrder.id,
+    event_type: 'tracking_updated',
+    description: 'Tracking dikemaskini: ' + (tracking || '—') + ' (' + (courier || 'manual') + ')',
+    actor: 'admin'
+  });
+
+  document.getElementById('trackingSaveMsg').classList.add('show');
+  openDetail(currentOrder);
+});
+
+checkSession();
+</script>
+
+</body>
+</html>
