@@ -7,7 +7,21 @@ if(!frame)return;
 frame.addEventListener('load',()=>{
   try{
     const d=frame.contentDocument,w=frame.contentWindow;
-    if(!d||!w?.supabase)return;
+    if(!d)return;
+
+    // Desktop shell owns the only top bar. Hide the embedded page header and
+    // return its vertical space to the active tab so every module can use the
+    // full viewport beneath the shared navigation.
+    if(window.matchMedia('(min-width:900px)').matches){
+      if(!d.getElementById('testra-single-topbar-style')){
+        const shell=d.createElement('style');
+        shell.id='testra-single-topbar-style';
+        shell.textContent='body>.top{display:none!important}.workspace{height:100vh!important}.reviewPage{height:100vh!important}.wrap{max-width:none!important;width:100%!important}.top+main.wrap,.top+.wrap{padding-top:18px!important}';
+        d.head.appendChild(shell);
+      }
+    }
+
+    if(!w?.supabase)return;
     const client=w.supabase.createClient(U,K);
 
     if(!d.getElementById('testra-delete-order-style')){
@@ -56,6 +70,6 @@ frame.addEventListener('load',()=>{
 
     enhance();
     new MutationObserver(enhance).observe(d.body,{childList:true,subtree:true});
-  }catch(e){console.error('TESTRA delete-order enhancement failed',e)}
+  }catch(e){console.error('TESTRA admin enhancement failed',e)}
 });
 })();
