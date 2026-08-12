@@ -24,4 +24,4 @@ footer{padding:52px 0 28px}.foot-links{display:none!important}.contact-main{just
 })();
 </script><script id="testra-pricing-selector">
 (()=>{const plans=[...document.querySelectorAll('.testra-plan')],btn=document.getElementById('testraOrderBtn');if(!plans.length||!btn)return;const paint=plan=>{plans.forEach(x=>x.classList.toggle('active',x===plan));const en=document.body.classList.contains('lang-en');const label=en?plan.dataset.labelEn:plan.dataset.labelBm;btn.innerHTML=en?`<span data-lang="en">Choose ${label} →</span>`:`<span data-lang="bm">Pilih ${label} →</span>`};plans.forEach(p=>p.addEventListener('click',()=>paint(p)));document.querySelectorAll('[data-setlang]').forEach(x=>x.addEventListener('click',()=>setTimeout(()=>paint(document.querySelector('.testra-plan.active')||plans[1]||plans[0]),0)));})();
-</script></body></html>
+</script><script src="pricing-live.js"></script></body></html>
